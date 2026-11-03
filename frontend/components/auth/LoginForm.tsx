@@ -34,7 +34,7 @@ export default function LoginForm() {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Login failed. Please check your credentials.');
+        setError('Falha ao entrar. Por favor, verifique suas credenciais.');
       }
     } finally {
       setLoading(false);
@@ -50,17 +50,17 @@ export default function LoginForm() {
       )}
 
       <Input
-        label="Email"
+        label="E-mail"
         type="email"
         required
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder="name@example.com"
+        placeholder="nome@exemplo.com"
         autoComplete="email"
       />
 
       <Input
-        label="Password"
+        label="Senha"
         type="password"
         required
         value={password}
@@ -76,7 +76,7 @@ export default function LoginForm() {
         isLoading={loading}
         className="w-full mt-2"
       >
-        Sign In
+        Entrar
       </Button>
     </form>
   );

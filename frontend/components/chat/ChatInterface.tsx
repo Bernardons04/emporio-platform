@@ -114,7 +114,7 @@ export function MessageInput({ onSendMessage, disabled = false }: MessageInputPr
           type="submit"
           disabled={disabled || !text.trim()}
           className="h-11 px-4 rounded-lg bg-[#2B5276] hover:bg-[#22425f] text-white font-medium text-sm flex items-center justify-center transition-colors shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
-          aria-label="Send message"
+          aria-label="Enviar mensagem"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

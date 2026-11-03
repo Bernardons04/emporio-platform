@@ -29,7 +29,7 @@ export function AdminSidebar({
 
   const navigation: AdminNavItem[] = [
     {
-      name: 'Home',
+      name: 'Início',
       href: '/admin',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,7 +38,7 @@ export function AdminSidebar({
       ),
     },
     {
-      name: 'Conversations',
+      name: 'Conversas',
       href: '/admin/conversations',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -47,7 +47,16 @@ export function AdminSidebar({
       ),
     },
     {
-      name: 'Knowledge Base',
+      name: 'Atendimento Humano',
+      href: '/admin/support',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+      ),
+    },
+    {
+      name: 'Base de Conhecimento',
       href: '/admin/knowledge-base',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -56,7 +65,7 @@ export function AdminSidebar({
       ),
     },
     {
-      name: 'Products',
+      name: 'Produtos',
       href: '/admin/products',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,7 +74,7 @@ export function AdminSidebar({
       ),
     },
     {
-      name: 'Promotions',
+      name: 'Promoções',
       href: '/admin/promotions',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -103,7 +112,7 @@ export function AdminSidebar({
             <div>
               <div className="font-bold text-sm tracking-wide leading-tight">Empório</div>
               <div className="text-[11px] font-semibold text-[#E6A211] tracking-wider uppercase">
-                Admin Panel
+                Painel Admin
               </div>
             </div>
           </div>
@@ -111,7 +120,7 @@ export function AdminSidebar({
           <button
             onClick={onCloseMobile}
             className="lg:hidden text-slate-300 hover:text-white p-1 rounded-md"
-            aria-label="Close sidebar"
+            aria-label="Fechar barra lateral"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -145,7 +154,7 @@ export function AdminSidebar({
         <div className="p-4 border-t border-[#22425f] bg-[#22425f]/40">
           <div className="flex items-center justify-between mb-3">
             <div className="truncate">
-              <div className="text-xs font-semibold text-white truncate">{userName || 'Admin'}</div>
+              <div className="text-xs font-semibold text-white truncate">{userName || 'Administrador'}</div>
               <div className="text-[11px] text-slate-300 truncate">{userEmail}</div>
             </div>
             <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
@@ -158,7 +167,7 @@ export function AdminSidebar({
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
-            Sign Out
+            Sair
           </button>
         </div>
       </aside>

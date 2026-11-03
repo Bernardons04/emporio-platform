@@ -57,12 +57,12 @@ export function ProductForm({ product, categories, onSuccess, onCancel }: Produc
     e.preventDefault();
     setError(null);
 
-    if (!name.trim()) { setError('Product name is required.'); return; }
-    if (!categoryId) { setError('Category is required.'); return; }
+    if (!name.trim()) { setError('O nome do produto é obrigatório.'); return; }
+    if (!categoryId) { setError('A categoria é obrigatória.'); return; }
     const parsedPrice = parseFloat(price);
-    if (isNaN(parsedPrice) || parsedPrice <= 0) { setError('Price must be a positive number.'); return; }
+    if (isNaN(parsedPrice) || parsedPrice <= 0) { setError('O preço deve ser um número positivo.'); return; }
     const parsedStock = parseInt(stock, 10);
-    if (isNaN(parsedStock) || parsedStock < 0) { setError('Stock must be a non-negative integer.'); return; }
+    if (isNaN(parsedStock) || parsedStock < 0) { setError('O estoque não pode ser negativo.'); return; }
 
     setLoading(true);
     try {
@@ -90,7 +90,7 @@ export function ProductForm({ product, categories, onSuccess, onCancel }: Produc
       }
       onSuccess(saved);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to save product.');
+      setError(err instanceof Error ? err.message : 'Falha ao salvar produto.');
     } finally {
       setLoading(false);
     }
@@ -99,15 +99,15 @@ export function ProductForm({ product, categories, onSuccess, onCancel }: Produc
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <Input
-        label="Product Name"
+        label="Nome do Produto"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="e.g. Violão Yamaha C40"
+        placeholder="Ex.: Violão Yamaha C40"
         required
       />
 
       <div className="w-full space-y-1.5">
-        <label className="block text-sm font-medium text-slate-800">Category</label>
+        <label className="block text-sm font-medium text-slate-800">Categoria</label>
         <select
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
@@ -123,29 +123,29 @@ export function ProductForm({ product, categories, onSuccess, onCancel }: Produc
       </div>
 
       <div className="w-full space-y-1.5">
-        <label className="block text-sm font-medium text-slate-800">Description</label>
+        <label className="block text-sm font-medium text-slate-800">Descrição</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
-          placeholder="Optional product description..."
+          placeholder="Descrição opcional do produto..."
           className="app-input resize-none"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <Input
-          label="Price (BRL)"
+          label="Preço (R$)"
           type="number"
           step="0.01"
           min="0.01"
           value={price}
           onChange={(e) => setPrice(e.target.value)}
-          placeholder="0.00"
+          placeholder="0,00"
           required
         />
         <Input
-          label="Stock Quantity"
+          label="Quantidade em Estoque"
           type="number"
           min="0"
           step="1"
@@ -162,9 +162,9 @@ export function ProductForm({ product, categories, onSuccess, onCancel }: Produc
           onChange={(e) => setProductStatus(e.target.value as 'active' | 'inactive' | 'discontinued')}
           className="app-input"
         >
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-          <option value="discontinued">Discontinued</option>
+          <option value="active">Ativo</option>
+          <option value="inactive">Inativo</option>
+          <option value="discontinued">Descontinuado</option>
         </select>
       </div>
 
@@ -174,10 +174,10 @@ export function ProductForm({ product, categories, onSuccess, onCancel }: Produc
 
       <div className="flex items-center justify-end gap-3 pt-2">
         <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
-          Cancel
+          Cancelar
         </Button>
         <Button type="submit" variant="primary" isLoading={loading}>
-          {isEditing ? 'Save Changes' : 'Create Product'}
+          {isEditing ? 'Salvar Alterações' : 'Criar Produto'}
         </Button>
       </div>
     </form>

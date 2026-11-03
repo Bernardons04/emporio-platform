@@ -38,7 +38,7 @@ export default function HomePage() {
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-3 border-[#2B5276] border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-sm font-medium text-slate-600">Verifying session...</span>
+          <span className="text-sm font-medium text-slate-600">Verificando sessão...</span>
         </div>
       </div>
     );
@@ -57,7 +57,7 @@ export default function HomePage() {
           Empório da Música
         </h1>
         <p className="mt-2 text-sm text-slate-600">
-          Customer support platform & musical instruments store
+          Plataforma de atendimento ao cliente e loja de instrumentos musicais
         </p>
       </div>
 
@@ -74,7 +74,7 @@ export default function HomePage() {
                   : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
               }`}
             >
-              Sign In
+              Entrar
             </button>
             <button
               type="button"
@@ -85,7 +85,7 @@ export default function HomePage() {
                   : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
               }`}
             >
-              Sign Up
+              Cadastrar
             </button>
           </div>
 
@@ -93,7 +93,7 @@ export default function HomePage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-slate-500">
-          Campo Grande, MS &bull; Oficial Empório da Música Portal
+          Campo Grande, MS &bull; Portal Oficial Empório da Música
         </p>
       </div>
     </div>

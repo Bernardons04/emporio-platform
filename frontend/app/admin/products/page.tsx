@@ -23,6 +23,12 @@ const STATUS_BADGE: Record<string, 'success' | 'warning' | 'default'> = {
   discontinued: 'default',
 };
 
+const STATUS_LABEL: Record<string, string> = {
+  active: 'Ativo',
+  inactive: 'Inativo',
+  discontinued: 'Descontinuado',
+};
+
 function formatBRL(value: string) {
   const n = parseFloat(value);
   return isNaN(n)
@@ -79,7 +85,7 @@ export default function AdminProductsPage() {
       });
       setData(result);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load products.');
+      setError(err instanceof Error ? err.message : 'Falha ao carregar produtos.');
     } finally {
       setLoading(false);
     }
@@ -138,7 +144,7 @@ export default function AdminProductsPage() {
         fetchProducts();
       }
     } catch (err: unknown) {
-      setDeleteError(err instanceof Error ? err.message : 'Failed to delete product.');
+      setDeleteError(err instanceof Error ? err.message : 'Falha ao excluir produto.');
     } finally {
       setDeleteLoading(false);
     }
@@ -147,11 +153,11 @@ export default function AdminProductsPage() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <AdminLayout
-      title="Product Catalog"
-      subtitle="Manage musical instruments — prices, inventory, categories, and availability"
+      title="Catálogo de Produtos"
+      subtitle="Gerencie instrumentos musicais — preços, estoque, categorias e disponibilidade"
       actions={
         <Button variant="primary" size="sm" onClick={openCreate}>
-          + New Product
+          + Novo Produto
         </Button>
       }
     >
@@ -162,7 +168,7 @@ export default function AdminProductsPage() {
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
               <Input
-                placeholder="Search by name or description..."
+                placeholder="Buscar por nome ou descrição..."
                 value={searchInput}
                 onChange={(e) => handleSearchInput(e.target.value)}
               />
@@ -172,7 +178,7 @@ export default function AdminProductsPage() {
               onChange={(e) => setCategoryFilter(e.target.value)}
               className="app-input sm:w-52"
             >
-              <option value="">All Categories</option>
+              <option value="">Todas as Categorias</option>
               {categories.map((cat) => (
                 <option key={cat.category_id} value={cat.category_id}>
                   {cat.name}
@@ -184,29 +190,29 @@ export default function AdminProductsPage() {
               onChange={(e) => setStatusFilter(e.target.value as '' | 'active' | 'inactive' | 'discontinued')}
               className="app-input sm:w-44"
             >
-              <option value="">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="discontinued">Discontinued</option>
+              <option value="">Todos os Status</option>
+              <option value="active">Ativo</option>
+              <option value="inactive">Inativo</option>
+              <option value="discontinued">Descontinuado</option>
             </select>
           </div>
         </Card>
 
         {/* Results */}
         <Card
-          title="Products"
-          subtitle={data ? `${data.total} product${data.total !== 1 ? 's' : ''} found` : undefined}
+          title="Produtos"
+          subtitle={data ? `${data.total} produto(s) encontrado(s)` : undefined}
         >
           {loading ? (
             <div className="flex items-center justify-center py-16 gap-3 text-slate-500">
               <div className="w-5 h-5 border-2 border-[#2B5276] border-t-transparent rounded-full animate-spin" />
-              Loading products...
+              Carregando produtos...
             </div>
           ) : error ? (
             <div className="py-12 text-center text-red-600 text-sm font-medium">{error}</div>
           ) : !data || data.items.length === 0 ? (
             <div className="py-12 text-center text-slate-400 text-sm">
-              No products found.{' '}
+              Nenhum produto encontrado.{' '}
               {(search || categoryFilter || statusFilter) && (
                 <button
                   onClick={() => {
@@ -215,9 +221,9 @@ export default function AdminProductsPage() {
                     setCategoryFilter('');
                     setStatusFilter('');
                   }}
-                  className="text-[#4986C1] hover:underline"
+                  className="text-[#4986C1] hover:underline cursor-pointer"
                 >
-                  Clear filters
+                  Limpar filtros
                 </button>
               )}
             </div>
@@ -228,12 +234,12 @@ export default function AdminProductsPage() {
                   <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider border-b border-slate-200">
                     <tr>
                       <th className="py-3 px-4 font-semibold">ID</th>
-                      <th className="py-3 px-4 font-semibold">Product Name</th>
-                      <th className="py-3 px-4 font-semibold">Category</th>
-                      <th className="py-3 px-4 font-semibold text-right">Unit Price</th>
-                      <th className="py-3 px-4 font-semibold text-right">Stock</th>
+                      <th className="py-3 px-4 font-semibold">Nome do Produto</th>
+                      <th className="py-3 px-4 font-semibold">Categoria</th>
+                      <th className="py-3 px-4 font-semibold text-right">Preço Unitário</th>
+                      <th className="py-3 px-4 font-semibold text-right">Estoque</th>
                       <th className="py-3 px-4 font-semibold">Status</th>
-                      <th className="py-3 px-4 font-semibold text-right">Actions</th>
+                      <th className="py-3 px-4 font-semibold text-right">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -259,7 +265,7 @@ export default function AdminProductsPage() {
                         </td>
                         <td className="py-3 px-4">
                           <Badge variant={STATUS_BADGE[product.status] ?? 'default'}>
-                            {product.status}
+                            {STATUS_LABEL[product.status] ?? product.status}
                           </Badge>
                         </td>
                         <td className="py-3 px-4">
@@ -269,7 +275,7 @@ export default function AdminProductsPage() {
                               size="sm"
                               onClick={() => openEdit(product)}
                             >
-                              Edit
+                              Editar
                             </Button>
                             <Button
                               variant="danger"
@@ -279,7 +285,7 @@ export default function AdminProductsPage() {
                                 setDeletingProduct(product);
                               }}
                             >
-                              Delete
+                              Excluir
                             </Button>
                           </div>
                         </td>
@@ -293,7 +299,7 @@ export default function AdminProductsPage() {
               {data.total_pages > 1 && (
                 <div className="flex items-center justify-between pt-4 mt-2 border-t border-slate-100">
                   <span className="text-xs text-slate-500">
-                    Page {data.page} of {data.total_pages} — {data.total} products
+                    Página {data.page} de {data.total_pages} — {data.total} produtos
                   </span>
                   <div className="flex items-center gap-2">
                     <Button
@@ -302,7 +308,7 @@ export default function AdminProductsPage() {
                       disabled={page <= 1}
                       onClick={() => setPage((p) => p - 1)}
                     >
-                      ← Prev
+                      ← Anterior
                     </Button>
                     <Button
                       variant="outline"
@@ -310,7 +316,7 @@ export default function AdminProductsPage() {
                       disabled={page >= data.total_pages}
                       onClick={() => setPage((p) => p + 1)}
                     >
-                      Next →
+                      Próxima →
                     </Button>
                   </div>
                 </div>
@@ -326,12 +332,12 @@ export default function AdminProductsPage() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <h2 className="text-base font-semibold text-slate-800">
-                {modalMode === 'create' ? 'New Product' : 'Edit Product'}
+                {modalMode === 'create' ? 'Novo Produto' : 'Editar Produto'}
               </h2>
               <button
                 onClick={closeModal}
                 className="text-slate-400 hover:text-slate-600 rounded p-1 cursor-pointer"
-                aria-label="Close"
+                aria-label="Fechar"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -362,10 +368,10 @@ export default function AdminProductsPage() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-slate-900 text-sm">Delete product?</h3>
+                  <h3 className="font-semibold text-slate-900 text-sm">Excluir produto?</h3>
                   <p className="text-xs text-slate-500 mt-1">
-                    <strong>{deletingProduct.name}</strong> will be permanently removed. This cannot be undone.
-                    Products referenced by orders or promotions cannot be deleted.
+                    <strong>{deletingProduct.name}</strong> será removido permanentemente. Esta ação não pode ser desfeita.
+                    Produtos vinculados a pedidos ou promoções não podem ser excluídos.
                   </p>
                 </div>
               </div>
@@ -384,7 +390,7 @@ export default function AdminProductsPage() {
                   }}
                   disabled={deleteLoading}
                 >
-                  Cancel
+                  Cancelar
                 </Button>
                 <Button
                   variant="danger"
@@ -392,7 +398,7 @@ export default function AdminProductsPage() {
                   isLoading={deleteLoading}
                   onClick={confirmDelete}
                 >
-                  Delete
+                  Excluir
                 </Button>
               </div>
             </div>

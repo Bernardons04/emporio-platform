@@ -35,7 +35,7 @@ export default function RegisterForm() {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Registration failed. Please try again.');
+        setError('Falha ao criar conta. Por favor, tente novamente.');
       }
     } finally {
       setLoading(false);
@@ -51,7 +51,7 @@ export default function RegisterForm() {
       )}
 
       <Input
-        label="Full Name"
+        label="Nome Completo"
         type="text"
         required
         value={name}
@@ -61,24 +61,24 @@ export default function RegisterForm() {
       />
 
       <Input
-        label="Email"
+        label="E-mail"
         type="email"
         required
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder="maria.silva@example.com"
+        placeholder="maria.silva@exemplo.com"
         autoComplete="email"
       />
 
       <Input
-        label="Password"
+        label="Senha"
         type="password"
         required
         minLength={8}
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        placeholder="At least 8 characters"
-        helperText="Must contain at least 8 characters"
+        placeholder="Mínimo de 8 caracteres"
+        helperText="Deve conter pelo menos 8 caracteres"
         autoComplete="new-password"
       />
 
@@ -89,7 +89,7 @@ export default function RegisterForm() {
         isLoading={loading}
         className="w-full mt-2"
       >
-        Create Account
+        Criar Conta
       </Button>
     </form>
   );

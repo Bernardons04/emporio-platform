@@ -66,7 +66,7 @@ export function AdminLayout({
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-3 border-[#2B5276] border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-sm font-medium text-slate-600">Verifying administrator permissions...</span>
+          <span className="text-sm font-medium text-slate-600">Verificando permissões de administrador...</span>
         </div>
       </div>
     );
@@ -81,7 +81,7 @@ export function AdminLayout({
             onClick={handleLogout}
             className="px-3 py-1.5 text-xs font-medium bg-white/10 hover:bg-white/20 rounded border border-white/20 cursor-pointer"
           >
-            Sign Out
+            Sair
           </button>
         </header>
 
@@ -90,15 +90,15 @@ export function AdminLayout({
             <div className="w-14 h-14 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 font-bold text-2xl border border-red-200">
               !
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Access Denied</h2>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">Acesso Negado</h2>
             <p className="text-sm text-slate-600 mb-6">
-              You are signed in as <strong>{user.email}</strong>, which does not have administrator privileges.
+              Você está conectado como <strong>{user.email}</strong>, que não possui privilégios de administrador.
             </p>
             <button
               onClick={() => router.push('/chat')}
               className="w-full py-2.5 px-4 rounded-lg bg-[#2B5276] hover:bg-[#22425f] text-white text-sm font-medium transition-colors cursor-pointer"
             >
-              Go to Customer Area
+              Ir para Área do Cliente
             </button>
           </div>
         </main>
@@ -127,7 +127,7 @@ export function AdminLayout({
             <button
               onClick={() => setSidebarOpen(true)}
               className="lg:hidden p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
-              aria-label="Open sidebar"
+              aria-label="Abrir barra lateral"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -152,7 +152,7 @@ export function AdminLayout({
               </span>
               <div className="text-left text-xs">
                 <span className="font-semibold text-slate-800 block leading-tight">{user.name}</span>
-                <span className="text-slate-500 text-[11px]">Administrator</span>
+                <span className="text-slate-500 text-[11px]">Administrador</span>
               </div>
             </div>
           </div>

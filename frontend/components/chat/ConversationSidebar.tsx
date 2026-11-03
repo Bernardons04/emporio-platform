@@ -51,15 +51,15 @@ export function ConversationSidebar({
               </svg>
             </span>
             <div>
-              <h2 className="font-bold text-sm tracking-wide">Conversations</h2>
-              <span className="text-xs text-slate-300">Empório Assistant</span>
+              <h2 className="font-bold text-sm tracking-wide">Conversas</h2>
+              <span className="text-xs text-slate-300">Assistente Empório</span>
             </div>
           </div>
 
           <button
             onClick={onCloseMobile}
             className="lg:hidden text-slate-300 hover:text-white p-1 rounded-md"
-            aria-label="Close menu"
+            aria-label="Fechar menu"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
