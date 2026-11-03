@@ -1,15 +1,18 @@
 """Document ingestion and reindexing pipeline for Empório da Música policies.
 
-Extracts text from PDF documents, performs structured chunking, generates embeddings
-via OpenRouter (never fallback vectors), and stores chunks with metadata
-in PostgreSQL with pgvector.
+Extracts text and tabular structures from PDF documents, performs structured
+chunking, generates embeddings via OpenRouter (never fallback vectors), and
+stores chunks with metadata in PostgreSQL with pgvector.
 """
 
 from dataclasses import dataclass, field
 import logging
 from pathlib import Path
+import re
+from typing import Any
 import uuid
 
+import pdfplumber
 import pypdf
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -23,6 +26,14 @@ logger = logging.getLogger(__name__)
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 DEFAULT_DOCS_DIR = BACKEND_DIR / "data" / "documents"
 
+# Header/footer patterns found in the store policy PDF.
+# These are stripped to avoid polluting chunk content with navigation text.
+_HEADER_PATTERN = re.compile(
+    r"^empório\s+da\s+música\s+manual\s+de\s+políticas",
+    re.IGNORECASE,
+)
+_FOOTER_PATTERN = re.compile(r"^página\s+\d+\s*$", re.IGNORECASE)
+
 
 @dataclass
 class DocumentIngestionStats:
@@ -33,19 +44,132 @@ class DocumentIngestionStats:
     errors: list[str] = field(default_factory=list)
 
 
+def format_markdown_table(table: list[list[Any]]) -> str:
+    """Formats an extracted 2D table matrix into a clean GitHub-Flavored Markdown table.
+
+    Normalizes cell text by replacing internal line breaks with spaces.
+    Handles wrapped cell text cleanly and balances row lengths.
+    """
+    if not table or not table[0]:
+        return ""
+
+    clean_table: list[list[str]] = []
+    for row in table:
+        clean_row = [str(c or "").replace("\n", " ").strip() for c in row]
+        if any(clean_row):
+            clean_table.append(clean_row)
+
+    if not clean_table:
+        return ""
+
+    headers = clean_table[0]
+    num_cols = len(headers)
+
+    lines: list[str] = ["| " + " | ".join(headers) + " |"]
+    lines.append("| " + " | ".join(["---"] * num_cols) + " |")
+
+    for row in clean_table[1:]:
+        while len(row) < num_cols:
+            row.append("")
+        lines.append("| " + " | ".join(row[:num_cols]) + " |")
+
+    return "\n".join(lines)
+
+
 def extract_pdf_pages(file_path: Path) -> list[tuple[int, str]]:
-    """Extracts text page by page from a PDF document.
+    """Extracts text and tabular data page by page from a PDF document.
+
+    Uses `pdfplumber` to:
+    1. Detect tables explicitly and format them as Markdown tables.
+    2. Extract surrounding text using layout coordinates.
+    3. Strip repetitive header and footer navigation artifacts.
+    4. Fall back safely to standard layout text if table extraction fails.
 
     Returns a list of (page_number, text) tuples (1-indexed).
     """
-    reader = pypdf.PdfReader(str(file_path))
     pages_text: list[tuple[int, str]] = []
 
-    for idx, page in enumerate(reader.pages, start=1):
-        text = page.extract_text() or ""
-        cleaned = text.strip()
-        if cleaned:
-            pages_text.append((idx, cleaned))
+    try:
+        with pdfplumber.open(str(file_path)) as pdf:
+            for idx, page in enumerate(pdf.pages, start=1):
+                tables = page.find_tables()
+
+                # If no tables on this page, perform standard layout extraction
+                if not tables:
+                    raw = page.extract_text(layout=True) or ""
+                    lines = [re.sub(r"[ \t]+", " ", line).strip() for line in raw.split("\n")]
+                    filtered = [
+                        line for line in lines
+                        if not _HEADER_PATTERN.match(line) and not _FOOTER_PATTERN.match(line)
+                    ]
+                    cleaned = re.sub(r"\n{3,}", "\n\n", "\n".join(filtered)).strip()
+                    if cleaned:
+                        pages_text.append((idx, cleaned))
+                    continue
+
+                # Sort tables top-to-bottom
+                tables = sorted(tables, key=lambda t: t.bbox[1])
+                segments: list[str] = []
+                last_top = 0.0
+
+                for t in tables:
+                    top, bottom = t.bbox[1], t.bbox[3]
+                    # Extract text above the table
+                    if top > last_top:
+                        crop_above = page.crop((0, last_top, page.width, top))
+                        text_above = crop_above.extract_text(layout=True)
+                        if text_above and text_above.strip():
+                            segments.append(text_above)
+
+                    # Extract table content and convert to Markdown
+                    table_matrix = t.extract()
+                    md_table = format_markdown_table(table_matrix)
+                    if md_table:
+                        segments.append(md_table)
+
+                    last_top = bottom
+
+                # Extract remainder of the page below the last table
+                if last_top < page.height:
+                    crop_below = page.crop((0, last_top, page.width, page.height))
+                    text_below = crop_below.extract_text(layout=True)
+                    if text_below and text_below.strip():
+                        segments.append(text_below)
+
+                combined = "\n\n".join(segments)
+                lines = [
+                    line.strip() if line.strip().startswith("|") else re.sub(r"[ \t]+", " ", line).strip()
+                    for line in combined.split("\n")
+                ]
+                filtered = [
+                    line for line in lines
+                    if not _HEADER_PATTERN.match(line) and not _FOOTER_PATTERN.match(line)
+                ]
+                cleaned = re.sub(r"\n{3,}", "\n\n", "\n".join(filtered)).strip()
+                if cleaned:
+                    pages_text.append((idx, cleaned))
+
+    except Exception as e:
+        logger.warning(
+            "pdfplumber extraction failed for '%s' (%s). Falling back to pypdf layout extraction.",
+            file_path.name,
+            e,
+        )
+        # Clear any partial pages before fallback to prevent duplication
+        pages_text.clear()
+
+        # Resilient fallback: standard pypdf
+        reader = pypdf.PdfReader(str(file_path))
+        for idx, page in enumerate(reader.pages, start=1):
+            raw = page.extract_text(extraction_mode="layout") or ""
+            lines = [re.sub(r"[ \t]+", " ", l).strip() for l in raw.split("\n")]
+            filtered = [
+                l for l in lines
+                if not _HEADER_PATTERN.match(l) and not _FOOTER_PATTERN.match(l)
+            ]
+            cleaned = re.sub(r"\n{3,}", "\n\n", "\n".join(filtered)).strip()
+            if cleaned:
+                pages_text.append((idx, cleaned))
 
     return pages_text
 
@@ -61,15 +185,12 @@ def invalidate_synthetic_embeddings(db: Session) -> int:
     count = 0
     for chunk in chunks:
         meta = dict(chunk.metadata_ or {})
-        # If the embedding was generated without a verified OpenRouter signature
-        # or during the previous run, clear it
         chunk.embedding = None
         if "embedding_model" in meta:
             del meta["embedding_model"]
         chunk.metadata_ = meta
         count += 1
 
-    # Also update any documents marked as completed back to pending_embeddings if chunks have no embeddings
     docs = db.query(Document).all()
     for doc in docs:
         if count > 0:
@@ -171,7 +292,11 @@ def ingest_policy_documents(
                     db.flush()
 
                 structured_chunks = chunk_document_pages(
-                    pages, chunk_size=1200, chunk_overlap=150
+                    pages,
+                    chunk_size=500,
+                    chunk_overlap=50,
+                    document_name=doc_name,
+                    source=file_name,
                 )
                 logger.info(
                     "Generated %d structured chunks for '%s'",
@@ -180,7 +305,6 @@ def ingest_policy_documents(
                 )
 
                 # Persist chunks with embedding=None first
-                created_chunk_objs: list[DocumentChunk] = []
                 for c_data in structured_chunks:
                     chunk_meta = dict(c_data.metadata)
                     chunk_meta.update(
@@ -197,7 +321,6 @@ def ingest_policy_documents(
                         metadata_=chunk_meta,
                     )
                     db.add(chunk_obj)
-                    created_chunk_objs.append(chunk_obj)
                     stats.chunks_created += 1
 
                 db.flush()
