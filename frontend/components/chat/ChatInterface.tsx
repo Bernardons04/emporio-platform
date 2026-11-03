@@ -125,33 +125,50 @@ interface MessageInputProps {
 
 export function MessageInput({ onSendMessage, disabled = false }: MessageInputProps) {
   const [text, setText] = React.useState('');
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Auto-resize textarea up to 5 lines (~128px)
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setText(e.target.value);
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      // Line height ~20px + padding 16px. 5 lines ~ 124px
+      const newHeight = Math.min(textarea.scrollHeight, 128);
+      textarea.style.height = `${newHeight}px`;
+    }
+  };
+
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!text.trim() || disabled) return;
     onSendMessage(text.trim());
     setText('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit(e);
+      handleSubmit();
     }
   };
 
   return (
     <div className="border-t border-slate-200 bg-white p-3 sm:p-4">
-      <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex items-end gap-2">
-        <div className="flex-1 relative">
+      <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex items-center gap-2">
+        <div className="flex-1 relative flex items-center">
           <textarea
+            ref={textareaRef}
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={handleInput}
             onKeyDown={handleKeyDown}
             disabled={disabled}
             placeholder="Digite sua dúvida sobre instrumentos, pedidos ou políticas..."
             rows={1}
-            className="app-input resize-none py-2.5 max-h-32 min-h-[44px]"
+            className="app-input resize-none py-2.5 max-h-32 min-h-[44px] block"
             style={{ overflowY: 'auto' }}
           />
         </div>
