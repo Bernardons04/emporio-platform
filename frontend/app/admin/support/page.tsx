@@ -6,6 +6,7 @@ import { Badge, Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { renderAssistantMarkdown } from '@/lib/markdown';
+import { EventDetails } from '@/components/admin/EventDetails';
 import {
   AdminMessage,
   AdminSupportTicket,
@@ -287,8 +288,14 @@ export default function AdminSupportInboxPage() {
 
       {/* Modal: Contexto do Chamado e Conversa */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4"
+          onClick={handleCloseModal}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div>
@@ -378,6 +385,9 @@ export default function AdminSupportInboxPage() {
                           <p className="whitespace-pre-wrap">{m.content}</p>
                         ) : (
                           <AdminAssistantMessage content={m.content} />
+                        )}
+                        {!isUser && m.events && m.events.length > 0 && (
+                          <EventDetails events={m.events} />
                         )}
                       </div>
                     </div>

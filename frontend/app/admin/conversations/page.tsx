@@ -6,6 +6,7 @@ import { Badge, Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { renderAssistantMarkdown } from '@/lib/markdown';
+import { EventDetails } from '@/components/admin/EventDetails';
 import {
   AdminConversationDetail,
   AdminConversationSummary,
@@ -38,50 +39,6 @@ function AdminAssistantMessage({ content }: { content: string }) {
       className="chat-markdown text-xs"
       dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
     />
-  );
-}
-
-function EventDetails({ events }: { events: AdminMessageEvent[] }) {
-  const [open, setOpen] = useState(false);
-
-  if (!events || events.length === 0) return null;
-
-  return (
-    <div className="mt-2 pt-2 border-t border-slate-200/60">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="text-[11px] font-medium text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer"
-      >
-        <span>{open ? '▼' : '▶'}</span>
-        <span>Atividades e ferramentas da IA ({events.length})</span>
-      </button>
-
-      {open && (
-        <div className="space-y-1.5 mt-2">
-          {events.map((ev) => {
-            const toolName = (ev.payload?.tool_name as string) || ev.event_type;
-            const toolArgs = ev.payload?.tool_args as Record<string, unknown> | undefined;
-            return (
-              <div
-                key={ev.id}
-                className="text-[11px] bg-white border border-slate-200 rounded p-2 text-slate-600 font-mono"
-              >
-                <div className="font-semibold text-slate-700">
-                  {ev.event_type === 'tool_start' ? 'Execução: ' : 'Retorno: '}
-                  <span className="text-[#2B5276]">{toolName}</span>
-                </div>
-                {toolArgs && Object.keys(toolArgs).length > 0 && (
-                  <div className="text-slate-500 truncate mt-0.5">
-                    Parâmetros: {JSON.stringify(toolArgs)}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -275,8 +232,14 @@ export default function AdminConversationsPage() {
 
       {/* Modal: Histórico Completo da Conversa */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4"
+          onClick={handleCloseModal}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div>

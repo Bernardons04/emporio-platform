@@ -144,18 +144,11 @@ export function AdminLayout({
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            {actions}
-            <div className="hidden sm:flex items-center gap-2 pl-4 border-l border-slate-200">
-              <span className="w-8 h-8 rounded-full bg-[#2B5276] text-white flex items-center justify-center text-xs font-bold">
-                {user.name.slice(0, 2).toUpperCase()}
-              </span>
-              <div className="text-left text-xs">
-                <span className="font-semibold text-slate-800 block leading-tight">{user.name}</span>
-                <span className="text-slate-500 text-[11px]">Administrador</span>
-              </div>
+          {actions && (
+            <div className="flex items-center gap-4">
+              {actions}
             </div>
-          </div>
+          )}
         </header>
 
         {/* Scrollable content */}
