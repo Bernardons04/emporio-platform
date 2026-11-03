@@ -1,26 +1,53 @@
 @import "tailwindcss";
 
+@theme {
+  --color-brand-primary: #2B5276;
+  --color-brand-primary-hover: #22425f;
+  --color-brand-secondary: #4986C1;
+  --color-brand-secondary-hover: #3d72a6;
+  --color-brand-accent: #E6A211;
+  --color-brand-accent-hover: #cf900d;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #f8fafc;
+  --foreground: #0f172a;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Common form input style for accessibility & strong contrast */
+.app-input {
+  width: 100%;
+  border-radius: 0.375rem;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: #0f172a;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.app-input::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+.app-input:focus {
+  outline: none;
+  border-color: #4986C1;
+  box-shadow: 0 0 0 3px rgba(73, 134, 193, 0.25);
+}
+
+.app-input:disabled {
+  background-color: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
 }
