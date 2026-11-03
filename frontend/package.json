@@ -9,12 +9,17 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "dompurify": "^3.4.17",
+    "isomorphic-dompurify": "^4.6.0",
+    "markdown-it": "^15.0.3",
     "next": "16.4.4",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
+    "@types/dompurify": "^3.0.5",
+    "@types/markdown-it": "^14.2.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

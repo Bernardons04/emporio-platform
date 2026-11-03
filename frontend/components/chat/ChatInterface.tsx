@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { renderAssistantMarkdown } from '@/lib/markdown';
 
 export interface ChatMessage {
   id: string;
@@ -10,9 +11,50 @@ export interface ChatMessage {
 interface MessageListProps {
   messages: ChatMessage[];
   isTyping?: boolean;
+  loadingHistory?: boolean;
 }
 
-export function MessageList({ messages, isTyping = false }: MessageListProps) {
+function AssistantMessageContent({ content }: { content: string }) {
+  const sanitizedHtml = useMemo(() => renderAssistantMarkdown(content), [content]);
+
+  return (
+    <div
+      className="chat-markdown text-sm"
+      dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+    />
+  );
+}
+
+export function MessageList({ messages, isTyping = false, loadingHistory = false }: MessageListProps) {
+  if (loadingHistory) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-6 text-slate-500">
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-6 h-6 border-2 border-[#2B5276] border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-xs font-medium">Carregando mensagens da conversa...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (messages.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-6 text-slate-400">
+        <div className="text-center max-w-sm">
+          <div className="w-12 h-12 rounded-full bg-slate-100 text-[#2B5276] flex items-center justify-center mx-auto mb-3">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          </div>
+          <p className="text-sm font-medium text-slate-600">Nenhuma mensagem nesta conversa</p>
+          <p className="text-xs text-slate-400 mt-1">
+            Envie sua dúvida abaixo para iniciar o atendimento com o assistente do Empório da Música.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
       {messages.map((msg) => {
@@ -36,7 +78,11 @@ export function MessageList({ messages, isTyping = false }: MessageListProps) {
                     : 'bg-white text-slate-800 border border-slate-200 rounded-bl-xs'
                 }`}
               >
-                <div className="whitespace-pre-wrap">{msg.content}</div>
+                {isUser ? (
+                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                ) : (
+                  <AssistantMessageContent content={msg.content} />
+                )}
                 <div
                   className={`text-[10px] mt-1 text-right ${
                     isUser ? 'text-white/80' : 'text-slate-400'

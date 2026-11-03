@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Badge, Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { renderAssistantMarkdown } from '@/lib/markdown';
 import {
   AdminConversationDetail,
   AdminConversationSummary,
@@ -27,6 +28,17 @@ function formatDate(dateStr: string) {
   } catch {
     return dateStr;
   }
+}
+
+function AdminAssistantMessage({ content }: { content: string }) {
+  const sanitizedHtml = useMemo(() => renderAssistantMarkdown(content), [content]);
+
+  return (
+    <div
+      className="chat-markdown text-xs"
+      dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+    />
+  );
 }
 
 function EventDetails({ events }: { events: AdminMessageEvent[] }) {
@@ -326,7 +338,11 @@ export default function AdminConversationsPage() {
                             : 'bg-slate-100 text-slate-900 border border-slate-200'
                         }`}
                       >
-                        <p className="whitespace-pre-wrap">{m.content}</p>
+                        {isUser ? (
+                          <p className="whitespace-pre-wrap">{m.content}</p>
+                        ) : (
+                          <AdminAssistantMessage content={m.content} />
+                        )}
                         {!isUser && m.events && m.events.length > 0 && (
                           <EventDetails events={m.events} />
                         )}

@@ -1,57 +1,57 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCurrentUser, logoutUser, User } from '@/lib/api';
+import {
+  createCustomerConversation,
+  CustomerConversation,
+  CustomerMessage,
+  getCurrentUser,
+  getCustomerConversationMessages,
+  listCustomerConversations,
+  logoutUser,
+  sendCustomerMessage,
+  User,
+} from '@/lib/api';
 import { ConversationSidebar, ConversationItem } from '@/components/chat/ConversationSidebar';
 import { MessageList, MessageInput, ChatMessage } from '@/components/chat/ChatInterface';
 
-// Mock conversations for UI visualization until Phase 7
-const INITIAL_MOCK_CONVERSATIONS: ConversationItem[] = [
-  {
-    id: 'conv-1',
-    title: 'Dúvidas sobre Violão Tagima',
-    lastMessage: 'Temos sim em estoque na loja de Campo Grande!',
-    timestamp: 'Hoje',
-  },
-  {
-    id: 'conv-2',
-    title: 'Status do Pedido #1002',
-    lastMessage: 'Seu pedido foi despachado para entrega.',
-    timestamp: 'Ontem',
-  },
-];
+function formatTimestamp(dateStr?: string): string {
+  if (!dateStr) return 'Agora';
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const isToday =
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear();
 
-const INITIAL_MOCK_MESSAGES: Record<string, ChatMessage[]> = {
-  'conv-1': [
-    {
-      id: 'm1',
-      sender: 'user',
-      content: 'Olá! Vocês tem o Violão Tagima Dallas em estoque?',
-      timestamp: '14:20',
-    },
-    {
-      id: 'm2',
-      sender: 'assistant',
-      content: 'Olá! Temos sim em estoque na nossa loja física em Campo Grande e para envio imediato. Gostaria de verificar as cores disponíveis ou formas de pagamento?',
-      timestamp: '14:21',
-    },
-  ],
-  'conv-2': [
-    {
-      id: 'm3',
-      sender: 'user',
-      content: 'Poderiam me informar sobre o status do pedido #1002?',
-      timestamp: 'Ontem 10:15',
-    },
-    {
-      id: 'm4',
-      sender: 'assistant',
-      content: 'Seu pedido #1002 foi despachado para entrega e tem previsão de chegada em até 2 dias úteis.',
-      timestamp: 'Ontem 10:16',
-    },
-  ],
-};
+    if (isToday) {
+      return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  } catch {
+    return 'Agora';
+  }
+}
+
+function mapConversationItem(c: CustomerConversation): ConversationItem {
+  return {
+    id: c.id,
+    title: c.title || 'Nova Conversa',
+    lastMessage: c.last_message || 'Inicie uma nova pergunta...',
+    timestamp: formatTimestamp(c.updated_at),
+  };
+}
+
+function mapChatMessage(m: CustomerMessage): ChatMessage {
+  return {
+    id: m.id,
+    sender: m.role === 'user' ? 'user' : 'assistant',
+    content: m.content,
+    timestamp: formatTimestamp(m.created_at),
+  };
+}
 
 export default function ChatPage() {
   const router = useRouter();
@@ -59,12 +59,16 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Conversational UI state
-  const [conversations, setConversations] = useState<ConversationItem[]>(INITIAL_MOCK_CONVERSATIONS);
-  const [activeConversationId, setActiveConversationId] = useState<string>('conv-1');
-  const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>(INITIAL_MOCK_MESSAGES);
+  // Conversations & messages state
+  const [conversations, setConversations] = useState<ConversationItem[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loadingConversations, setLoadingConversations] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Verify auth session
   useEffect(() => {
     async function loadUser() {
       try {
@@ -84,6 +88,57 @@ export default function ChatPage() {
     loadUser();
   }, [router]);
 
+  // Load message history when active conversation changes
+  const loadMessages = useCallback(async (conversationId: string) => {
+    setLoadingMessages(true);
+    setErrorMessage(null);
+    try {
+      const history = await getCustomerConversationMessages(conversationId);
+      setMessages(history.map(mapChatMessage));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao carregar o histórico de mensagens.';
+      setErrorMessage(msg);
+      setMessages([]);
+    } finally {
+      setLoadingMessages(false);
+    }
+  }, []);
+
+  // Fetch conversations from backend
+  const loadConversations = useCallback(
+    async (preferredActiveId?: string) => {
+      setLoadingConversations(true);
+      try {
+        const convList = await listCustomerConversations();
+        const mapped = convList.map(mapConversationItem);
+        setConversations(mapped);
+
+        // Select conversation
+        const targetId = preferredActiveId || (mapped.length > 0 ? mapped[0].id : null);
+        if (targetId) {
+          setActiveConversationId(targetId);
+          await loadMessages(targetId);
+        } else {
+          setActiveConversationId(null);
+          setMessages([]);
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Falha ao carregar conversas.';
+        setErrorMessage(msg);
+      } finally {
+        setLoadingConversations(false);
+      }
+    },
+    [loadMessages]
+  );
+
+  // Initial load once user is verified
+  useEffect(() => {
+    if (user) {
+      loadConversations();
+    }
+  }, [user, loadConversations]);
+
   const handleLogout = async () => {
     try {
       await logoutUser();
@@ -95,66 +150,98 @@ export default function ChatPage() {
     }
   };
 
-  const handleNewConversation = () => {
-    const newId = `conv-${Date.now()}`;
-    const newConv: ConversationItem = {
-      id: newId,
-      title: 'Nova Conversa',
-      lastMessage: 'Inicie uma nova pergunta...',
-      timestamp: 'Agora',
-    };
-    setConversations([newConv, ...conversations]);
-    setActiveConversationId(newId);
-    setMessagesMap((prev) => ({
-      ...prev,
-      [newId]: [
-        {
-          id: `m-${Date.now()}`,
-          sender: 'assistant',
-          content: 'Olá! Sou o assistente virtual do Empório da Música. Como posso ajudar você hoje?',
-          timestamp: 'Agora',
-        },
-      ],
-    }));
+  const handleSelectConversation = (id: string) => {
+    if (id === activeConversationId || isTyping) return;
+    setActiveConversationId(id);
+    loadMessages(id);
   };
 
-  const handleSendMessage = (text: string) => {
-    const userMsg: ChatMessage = {
-      id: `m-u-${Date.now()}`,
+  const handleNewConversation = async () => {
+    if (isTyping) return;
+    setErrorMessage(null);
+    try {
+      const newConv = await createCustomerConversation();
+      const mapped = mapConversationItem(newConv);
+      setConversations((prev) => [mapped, ...prev]);
+      setActiveConversationId(newConv.id);
+      setMessages([]);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao criar nova conversa.';
+      setErrorMessage(msg);
+    }
+  };
+
+  const handleSendMessage = async (text: string) => {
+    if (!text.trim() || isTyping) return;
+
+    setErrorMessage(null);
+    let targetConversationId = activeConversationId;
+
+    // If there is no active conversation yet, create one first
+    if (!targetConversationId) {
+      try {
+        const newConv = await createCustomerConversation();
+        targetConversationId = newConv.id;
+        const mapped = mapConversationItem(newConv);
+        setConversations((prev) => [mapped, ...prev]);
+        setActiveConversationId(targetConversationId);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Falha ao iniciar conversa.';
+        setErrorMessage(msg);
+        return;
+      }
+    }
+
+    // Optimistic user message in UI
+    const tempUserId = `temp-${Date.now()}`;
+    const optimisticUserMsg: ChatMessage = {
+      id: tempUserId,
       sender: 'user',
       content: text,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: formatTimestamp(),
     };
 
-    setMessagesMap((prev) => ({
-      ...prev,
-      [activeConversationId]: [...(prev[activeConversationId] || []), userMsg],
-    }));
+    setMessages((prev) => [...prev, optimisticUserMsg]);
+    setIsTyping(true);
 
-    // Update conversation list preview
+    // Update conversation sidebar preview
     setConversations((prev) =>
       prev.map((c) =>
-        c.id === activeConversationId
+        c.id === targetConversationId
           ? { ...c, lastMessage: text, timestamp: 'Agora' }
           : c
       )
     );
 
-    // Mock response simulation for Phase 5 presentation
-    setIsTyping(true);
-    setTimeout(() => {
-      const assistantMsg: ChatMessage = {
-        id: `m-a-${Date.now()}`,
-        sender: 'assistant',
-        content: `Obrigado pela sua mensagem! O agente conversacional com RAG e LangGraph será integrado nas próximas etapas do projeto. Recebi: "${text}"`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessagesMap((prev) => ({
-        ...prev,
-        [activeConversationId]: [...(prev[activeConversationId] || []), assistantMsg],
-      }));
+    try {
+      const res = await sendCustomerMessage(targetConversationId, text);
+
+      // Replace optimistic message and append real assistant response
+      const serverUserMsg = mapChatMessage(res.user_message);
+      const serverAssistantMsg = mapChatMessage(res.assistant_message);
+
+      setMessages((prev) => {
+        const filtered = prev.filter((m) => m.id !== tempUserId);
+        return [...filtered, serverUserMsg, serverAssistantMsg];
+      });
+
+      // Update sidebar preview with assistant's response
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === targetConversationId
+            ? { ...c, lastMessage: res.assistant_message.content.slice(0, 80), timestamp: 'Agora' }
+            : c
+        )
+      );
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : 'Falha ao enviar mensagem para o assistente virtual.';
+      setErrorMessage(msg);
+      // Rollback optimistic message if failed
+      setMessages((prev) => prev.filter((m) => m.id !== tempUserId));
+    } finally {
       setIsTyping(false);
-    }, 1000);
+    }
   };
 
   if (loading) {
@@ -170,18 +257,17 @@ export default function ChatPage() {
 
   if (!user) return null;
 
-  const currentMessages = messagesMap[activeConversationId] || [];
-
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       {/* Conversation Sidebar */}
       <ConversationSidebar
         conversations={conversations}
         activeId={activeConversationId}
-        onSelectConversation={(id) => setActiveConversationId(id)}
+        onSelectConversation={handleSelectConversation}
         onNewConversation={handleNewConversation}
         isOpen={sidebarOpen}
         onCloseMobile={() => setSidebarOpen(false)}
+        loading={loadingConversations}
       />
 
       {/* Main Chat Area */}
@@ -229,11 +315,37 @@ export default function ChatPage() {
           </div>
         </header>
 
+        {/* Error notification banner if any */}
+        {errorMessage && (
+          <div className="bg-red-50 border-b border-red-200 px-4 py-2.5 flex items-center justify-between text-xs text-red-700 shrink-0">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span>{errorMessage}</span>
+            </div>
+            <button
+              onClick={() => setErrorMessage(null)}
+              className="text-red-500 hover:text-red-700 font-bold ml-2 cursor-pointer"
+              aria-label="Fechar erro"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Message Content View */}
-        <MessageList messages={currentMessages} isTyping={isTyping} />
+        <MessageList
+          messages={messages}
+          isTyping={isTyping}
+          loadingHistory={loadingMessages}
+        />
 
         {/* Message Input Bottom */}
-        <MessageInput onSendMessage={handleSendMessage} />
+        <MessageInput
+          onSendMessage={handleSendMessage}
+          disabled={isTyping || loadingMessages}
+        />
       </div>
     </div>
   );

@@ -331,3 +331,62 @@ export async function updateAdminSupportTicketStatus(
   });
 }
 
+// ── Customer Chat API types & functions ────────────────────────────────────────
+
+export interface CustomerConversation {
+  id: string;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+  last_message: string | null;
+}
+
+export interface CustomerMessageEvent {
+  id: string;
+  event_type: string;
+  sequence: number;
+  payload: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface CustomerMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  created_at: string;
+  events?: CustomerMessageEvent[];
+}
+
+export interface SendMessageResponse {
+  user_message: CustomerMessage;
+  assistant_message: CustomerMessage;
+  events: CustomerMessageEvent[];
+}
+
+export async function listCustomerConversations(): Promise<CustomerConversation[]> {
+  return apiRequest<CustomerConversation[]>('/api/chat/conversations');
+}
+
+export async function createCustomerConversation(title?: string): Promise<CustomerConversation> {
+  return apiRequest<CustomerConversation>('/api/chat/conversations', {
+    method: 'POST',
+    body: JSON.stringify(title ? { title } : {}),
+  });
+}
+
+export async function getCustomerConversationMessages(conversationId: string): Promise<CustomerMessage[]> {
+  return apiRequest<CustomerMessage[]>(`/api/chat/conversations/${conversationId}/messages`);
+}
+
+export async function sendCustomerMessage(
+  conversationId: string,
+  content: string
+): Promise<SendMessageResponse> {
+  return apiRequest<SendMessageResponse>(`/api/chat/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  });
+}
+
+

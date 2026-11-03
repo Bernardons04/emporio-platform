@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Badge, Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { renderAssistantMarkdown } from '@/lib/markdown';
 import {
   AdminMessage,
   AdminSupportTicket,
@@ -27,6 +28,17 @@ function formatDate(dateStr: string) {
   } catch {
     return dateStr;
   }
+}
+
+function AdminAssistantMessage({ content }: { content: string }) {
+  const sanitizedHtml = useMemo(() => renderAssistantMarkdown(content), [content]);
+
+  return (
+    <div
+      className="chat-markdown text-xs"
+      dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+    />
+  );
 }
 
 export default function AdminSupportInboxPage() {
@@ -362,7 +374,11 @@ export default function AdminSupportInboxPage() {
                             : 'bg-slate-100 text-slate-900 border border-slate-200'
                         }`}
                       >
-                        <p className="whitespace-pre-wrap">{m.content}</p>
+                        {isUser ? (
+                          <p className="whitespace-pre-wrap">{m.content}</p>
+                        ) : (
+                          <AdminAssistantMessage content={m.content} />
+                        )}
                       </div>
                     </div>
                   );

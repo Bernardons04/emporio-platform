@@ -15,6 +15,7 @@ interface ConversationSidebarProps {
   onNewConversation: () => void;
   isOpen: boolean;
   onCloseMobile: () => void;
+  loading?: boolean;
 }
 
 export function ConversationSidebar({
@@ -24,6 +25,7 @@ export function ConversationSidebar({
   onNewConversation,
   isOpen,
   onCloseMobile,
+  loading = false,
 }: ConversationSidebarProps) {
   return (
     <>
@@ -85,7 +87,12 @@ export function ConversationSidebar({
 
         {/* Conversation List */}
         <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
-          {conversations.length === 0 ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-8 text-xs text-slate-300 gap-2">
+              <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin"></div>
+              <span>Carregando conversas...</span>
+            </div>
+          ) : conversations.length === 0 ? (
             <div className="text-center py-8 text-xs text-slate-300 px-4">
               Nenhuma conversa anterior encontrada. Clique em &quot;Nova Conversa&quot; para começar.
             </div>
