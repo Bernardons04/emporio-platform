@@ -1,197 +1,351 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { Badge } from '@/components/ui/Card';
+import { Badge, Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import {
+  AdminConversationDetail,
+  AdminConversationSummary,
+  AdminMessage,
+  AdminMessageEvent,
+  getAdminConversation,
+  listAdminConversations,
+} from '@/lib/api';
 
-interface MockTicket {
-  id: string;
-  customerName: string;
-  customerEmail: string;
-  subject: string;
-  status: 'open' | 'pending' | 'resolved';
-  lastMessage: string;
-  time: string;
-  messages: Array<{ sender: 'customer' | 'support' | 'ai'; text: string; time: string }>;
+function formatDate(dateStr: string) {
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return dateStr;
+  }
 }
 
-const MOCK_TICKETS: MockTicket[] = [
-  {
-    id: 'TICK-101',
-    customerName: 'Lucas Oliveira',
-    customerEmail: 'lucas.oliveira@email.com',
-    subject: 'Solicitação de troca do Violão Tagima',
-    status: 'open',
-    lastMessage: 'Gostaria de saber o prazo para solicitar a troca.',
-    time: '10 min atrás',
-    messages: [
-      {
-        sender: 'customer',
-        text: 'Olá, recebi o instrumento ontem mas gostaria de trocar pelo modelo elétrico.',
-        time: '14:10',
-      },
-      {
-        sender: 'ai',
-        text: 'Conforme a política da loja, você tem até 7 dias corridos após o recebimento para arrependimento ou troca de itens não violados.',
-        time: '14:11',
-      },
-      {
-        sender: 'customer',
-        text: 'Perfeito! Qual é o procedimento com o suporte humano?',
-        time: '14:15',
-      },
-    ],
-  },
-  {
-    id: 'TICK-102',
-    customerName: 'Fernanda Souza',
-    customerEmail: 'fernanda.souza@email.com',
-    subject: 'Dúvida sobre entrega em Campo Grande',
-    status: 'pending',
-    lastMessage: 'A entrega expressa funciona aos sábados?',
-    time: '1 hora atrás',
-    messages: [
-      {
-        sender: 'customer',
-        text: 'Olá, a entrega no centro de Campo Grande pode ser feita no sábado pela manhã?',
-        time: '13:00',
-      },
-    ],
-  },
-];
+function EventDetails({ events }: { events: AdminMessageEvent[] }) {
+  const [open, setOpen] = useState(false);
 
-export default function AdminConversationsPage() {
-  const [selectedTicketId, setSelectedTicketId] = useState<string>('TICK-101');
-  const selectedTicket = MOCK_TICKETS.find((t) => t.id === selectedTicketId) || MOCK_TICKETS[0];
+  if (!events || events.length === 0) return null;
 
   return (
-    <AdminLayout
-      title="Support Inbox"
-      subtitle="Split-view customer conversation management & human support escalation"
-    >
-      {/* Split-view container */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row h-[calc(100vh-210px)] min-h-[500px]">
-        {/* Left Column: Tickets list */}
-        <div className="w-full md:w-80 lg:w-96 border-b md:border-b-0 md:border-r border-slate-200 flex flex-col h-full bg-slate-50/50">
-          <div className="p-3.5 border-b border-slate-200 bg-white flex items-center justify-between">
-            <span className="font-semibold text-xs text-slate-700 uppercase tracking-wider">
-              Tickets ({MOCK_TICKETS.length})
-            </span>
-            <Badge variant="accent">Inbox</Badge>
-          </div>
+    <div className="mt-2 pt-2 border-t border-slate-200/60">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="text-[11px] font-medium text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer"
+      >
+        <span>{open ? '▼' : '▶'}</span>
+        <span>Atividades e ferramentas da IA ({events.length})</span>
+      </button>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
-            {MOCK_TICKETS.map((ticket) => {
-              const isSelected = ticket.id === selectedTicket.id;
-              return (
-                <button
-                  key={ticket.id}
-                  onClick={() => setSelectedTicketId(ticket.id)}
-                  className={`w-full text-left p-4 transition-colors cursor-pointer flex flex-col gap-1.5 ${
-                    isSelected ? 'bg-white border-l-4 border-l-[#2B5276] shadow-xs' : 'hover:bg-slate-100/70'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-xs text-slate-800 truncate max-w-[170px]">
-                      {ticket.customerName}
-                    </span>
-                    <span className="text-[10px] text-slate-400">{ticket.time}</span>
-                  </div>
-                  <div className="text-xs font-medium text-slate-900 truncate">
-                    {ticket.subject}
-                  </div>
-                  <p className="text-[11px] text-slate-500 line-clamp-1">{ticket.lastMessage}</p>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right Column: Ticket details & conversation */}
-        <div className="flex-1 flex flex-col h-full bg-white">
-          {/* Header of selected ticket */}
-          <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/30">
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm text-slate-900">{selectedTicket.subject}</h3>
-                <Badge variant={selectedTicket.status === 'open' ? 'warning' : 'default'}>
-                  {selectedTicket.status.toUpperCase()}
-                </Badge>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Customer: <strong>{selectedTicket.customerName}</strong> ({selectedTicket.customerEmail})
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                Escalate
-              </Button>
-              <Button variant="primary" size="sm">
-                Mark as Resolved
-              </Button>
-            </div>
-          </div>
-
-          {/* Conversation history */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-            {selectedTicket.messages.map((m, idx) => (
+      {open && (
+        <div className="space-y-1.5 mt-2">
+          {events.map((ev) => {
+            const toolName = (ev.payload?.tool_name as string) || ev.event_type;
+            const toolArgs = ev.payload?.tool_args as Record<string, unknown> | undefined;
+            return (
               <div
-                key={idx}
-                className={`flex flex-col ${
-                  m.sender === 'customer'
-                    ? 'items-start'
-                    : m.sender === 'support'
-                    ? 'items-end'
-                    : 'items-start'
-                }`}
+                key={ev.id}
+                className="text-[11px] bg-white border border-slate-200 rounded p-2 text-slate-600 font-mono"
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[11px] font-semibold text-slate-700">
-                    {m.sender === 'customer'
-                      ? selectedTicket.customerName
-                      : m.sender === 'ai'
-                      ? 'AI Assistant'
-                      : 'Support Agent'}
-                  </span>
-                  <span className="text-[10px] text-slate-400">{m.time}</span>
+                <div className="font-semibold text-slate-700">
+                  {ev.event_type === 'tool_start' ? 'Execução: ' : 'Retorno: '}
+                  <span className="text-[#2B5276]">{toolName}</span>
                 </div>
-                <div
-                  className={`p-3.5 rounded-xl text-xs max-w-[85%] leading-relaxed ${
-                    m.sender === 'customer'
-                      ? 'bg-slate-100 text-slate-800'
-                      : m.sender === 'ai'
-                      ? 'bg-[#2B5276]/10 text-slate-800 border border-[#2B5276]/20'
-                      : 'bg-[#4986C1] text-white'
-                  }`}
-                >
-                  {m.text}
-                </div>
+                {toolArgs && Object.keys(toolArgs).length > 0 && (
+                  <div className="text-slate-500 truncate mt-0.5">
+                    Parâmetros: {JSON.stringify(toolArgs)}
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-
-          {/* Reply input for human operator */}
-          <div className="p-3 border-t border-slate-200 bg-slate-50">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Type your response to the customer..."
-                className="app-input text-xs"
-                disabled
-              />
-              <Button variant="secondary" size="sm" disabled>
-                Send
-              </Button>
-            </div>
-            <p className="text-[10px] text-slate-400 mt-1">
-              * Support Inbox response integration will be wired in Phase 8.
-            </p>
-          </div>
+            );
+          })}
         </div>
-      </div>
-    </AdminLayout>
+      )}
+    </div>
   );
 }
 
+export default function AdminConversationsPage() {
+  const [conversations, setConversations] = useState<AdminConversationSummary[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Search input with debounce
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Modal detail
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedConversation, setSelectedConversation] = useState<AdminConversationDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
+
+  const handleSearchInput = (val: string) => {
+    setSearchInput(val);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      setSearch(val);
+      setPage(1);
+    }, 350);
+  };
+
+  const loadConversations = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await listAdminConversations({
+        search: search || undefined,
+        page,
+        page_size: 20,
+      });
+      setConversations(res.items);
+      setTotal(res.total);
+      setTotalPages(res.total_pages);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Falha ao carregar as conversas.');
+    } finally {
+      setLoading(false);
+    }
+  }, [search, page]);
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  const handleOpenConversation = async (conversationId: string) => {
+    setModalOpen(true);
+    setSelectedConversation(null);
+    setLoadingDetail(true);
+    setErrorDetail(null);
+    try {
+      const detail = await getAdminConversation(conversationId);
+      setSelectedConversation(detail);
+    } catch (err: unknown) {
+      setErrorDetail(err instanceof Error ? err.message : 'Falha ao carregar o histórico da conversa.');
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setSelectedConversation(null);
+  };
+
+  return (
+    <AdminLayout
+      title="Histórico de Conversas"
+      subtitle="Consulta e auditoria das mensagens trocadas entre clientes e o assistente virtual"
+    >
+      <div className="space-y-6">
+        {/* Filtros de Busca */}
+        <Card>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
+              <Input
+                placeholder="Buscar por e-mail, nome do cliente ou assunto..."
+                value={searchInput}
+                onChange={(e) => handleSearchInput(e.target.value)}
+              />
+            </div>
+          </div>
+        </Card>
+
+        {/* Tabela de Conversas */}
+        <Card
+          title="Atendimentos Registrados"
+          subtitle={total > 0 ? `${total} conversa(s) encontrada(s)` : undefined}
+        >
+          {loading ? (
+            <div className="flex items-center justify-center py-16 gap-3 text-slate-500">
+              <div className="w-5 h-5 border-2 border-[#2B5276] border-t-transparent rounded-full animate-spin" />
+              Carregando conversas...
+            </div>
+          ) : error ? (
+            <div className="py-12 text-center text-red-600 text-sm font-medium">{error}</div>
+          ) : conversations.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 text-sm">
+              Nenhuma conversa encontrada.
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                    <tr>
+                      <th className="py-3 px-4 font-semibold">Cliente</th>
+                      <th className="py-3 px-4 font-semibold">Assunto / Primeira Mensagem</th>
+                      <th className="py-3 px-4 font-semibold text-center">Mensagens</th>
+                      <th className="py-3 px-4 font-semibold">Última Interação</th>
+                      <th className="py-3 px-4 font-semibold text-right">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {conversations.map((conv) => (
+                      <tr key={conv.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3.5 px-4">
+                          <div className="font-semibold text-slate-900">{conv.user.email}</div>
+                          <div className="text-[11px] text-slate-500">{conv.user.name}</div>
+                        </td>
+                        <td className="py-3.5 px-4 max-w-md">
+                          <div className="font-medium text-slate-900 truncate">
+                            {conv.title || 'Atendimento Geral'}
+                          </div>
+                          {conv.has_support_ticket && (
+                            <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
+                              Chamado aberto
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-center font-mono font-medium">
+                          {conv.message_count}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-500 whitespace-nowrap">
+                          {formatDate(conv.updated_at)}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenConversation(conv.id)}
+                          >
+                            Ver conversa
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Paginação */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-4 mt-2 border-t border-slate-100">
+                  <span className="text-xs text-slate-500">
+                    Página {page} de {totalPages} — {total} conversas
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => p - 1)}
+                    >
+                      ← Anterior
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((p) => p + 1)}
+                    >
+                      Próxima →
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </Card>
+      </div>
+
+      {/* Modal: Histórico Completo da Conversa */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div>
+                <h3 className="font-bold text-sm text-slate-900">
+                  {selectedConversation?.title || 'Histórico da Conversa'}
+                </h3>
+                {selectedConversation && (
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Cliente: <strong>{selectedConversation.user.name}</strong> ({selectedConversation.user.email})
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                className="text-slate-400 hover:text-slate-600 rounded p-1 cursor-pointer"
+                aria-label="Fechar"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {loadingDetail ? (
+                <div className="flex items-center justify-center py-16 gap-2 text-xs text-slate-500">
+                  <div className="w-4 h-4 border-2 border-[#2B5276] border-t-transparent rounded-full animate-spin" />
+                  Carregando mensagens...
+                </div>
+              ) : errorDetail ? (
+                <div className="py-12 text-center text-red-600 text-xs font-medium">
+                  {errorDetail}
+                </div>
+              ) : !selectedConversation || selectedConversation.messages.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs">
+                  Nenhuma mensagem registrada nesta conversa.
+                </div>
+              ) : (
+                selectedConversation.messages.map((m: AdminMessage) => {
+                  const isUser = m.role === 'user';
+                  return (
+                    <div
+                      key={m.id}
+                      className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
+                    >
+                      <div className="flex items-center gap-2 mb-1 px-1">
+                        <span className="text-[11px] font-semibold text-slate-700">
+                          {isUser ? selectedConversation.user.name : 'Assistente Virtual (IA)'}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          {formatDate(m.created_at)}
+                        </span>
+                      </div>
+
+                      <div
+                        className={`p-3.5 rounded-xl text-xs max-w-[85%] leading-relaxed ${
+                          isUser
+                            ? 'bg-[#2B5276] text-white shadow-xs'
+                            : 'bg-slate-100 text-slate-900 border border-slate-200'
+                        }`}
+                      >
+                        <p className="whitespace-pre-wrap">{m.content}</p>
+                        {!isUser && m.events && m.events.length > 0 && (
+                          <EventDetails events={m.events} />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+              <Button variant="outline" size="sm" onClick={handleCloseModal}>
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </AdminLayout>
+  );
+}

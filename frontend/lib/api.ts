@@ -155,3 +155,179 @@ export async function deleteProduct(productId: number): Promise<void> {
     method: 'DELETE',
   });
 }
+
+// ── Promotion types ───────────────────────────────────────────────────────────
+
+export interface PromotionProductSummary {
+  product_id: number;
+  name: string;
+  price_brl: string;
+  category_id: number;
+}
+
+export interface Promotion {
+  promotion_id: number;
+  product_id: number;
+  discount_percent: string;
+  description: string | null;
+  is_active: boolean;
+  product: PromotionProductSummary;
+  original_price_brl: string;
+  discounted_price_brl: string;
+}
+
+export interface PromotionListResponse {
+  items: Promotion[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+// ── Promotion API functions ───────────────────────────────────────────────────
+
+export async function listPromotions(params?: {
+  search?: string;
+  is_active?: boolean;
+  page?: number;
+  page_size?: number;
+}): Promise<PromotionListResponse> {
+  const query = new URLSearchParams();
+  if (params?.search) query.set('search', params.search);
+  if (params?.is_active !== undefined) query.set('is_active', String(params.is_active));
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.page_size) query.set('page_size', String(params.page_size));
+  const qs = query.toString();
+  return apiRequest<PromotionListResponse>(`/api/admin/promotions${qs ? `?${qs}` : ''}`);
+}
+
+// ── Admin Conversations & Support Tickets types ───────────────────────────────
+
+export interface AdminUserSummary {
+  id: string;
+  name: string;
+  email: string;
+  is_admin: boolean;
+  customer_id: number | null;
+}
+
+export interface AdminMessageEvent {
+  id: string;
+  event_type: string;
+  sequence: number;
+  payload: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface AdminMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+  events: AdminMessageEvent[];
+}
+
+export interface AdminConversationSummary {
+  id: string;
+  user_id: string;
+  user: AdminUserSummary;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+  last_message: string | null;
+  has_support_ticket: boolean;
+}
+
+export interface AdminConversationDetail {
+  id: string;
+  user_id: string;
+  user: AdminUserSummary;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+  messages: AdminMessage[];
+}
+
+export interface AdminConversationListResponse {
+  items: AdminConversationSummary[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface AdminSupportTicket {
+  id: string;
+  protocol: string;
+  user_id: string;
+  user: AdminUserSummary;
+  conversation_id: string;
+  reason: string;
+  status: 'pending' | 'in_progress' | 'resolved' | 'closed';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminSupportTicketDetail extends AdminSupportTicket {
+  conversation: AdminConversationDetail | null;
+}
+
+export interface AdminSupportTicketListResponse {
+  items: AdminSupportTicket[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+// ── Admin Conversations API functions ─────────────────────────────────────────
+
+export async function listAdminConversations(params?: {
+  search?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<AdminConversationListResponse> {
+  const query = new URLSearchParams();
+  if (params?.search) query.set('search', params.search);
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.page_size) query.set('page_size', String(params.page_size));
+  const qs = query.toString();
+  return apiRequest<AdminConversationListResponse>(`/api/admin/conversations${qs ? `?${qs}` : ''}`);
+}
+
+export async function getAdminConversation(conversationId: string): Promise<AdminConversationDetail> {
+  return apiRequest<AdminConversationDetail>(`/api/admin/conversations/${conversationId}`);
+}
+
+// ── Admin Support Tickets API functions ───────────────────────────────────────
+
+export async function listAdminSupportTickets(params?: {
+  status?: string;
+  search?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<AdminSupportTicketListResponse> {
+  const query = new URLSearchParams();
+  if (params?.status) query.set('status_filter', params.status);
+  if (params?.search) query.set('search', params.search);
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.page_size) query.set('page_size', String(params.page_size));
+  const qs = query.toString();
+  return apiRequest<AdminSupportTicketListResponse>(`/api/admin/support-tickets${qs ? `?${qs}` : ''}`);
+}
+
+export async function getAdminSupportTicket(ticketId: string): Promise<AdminSupportTicketDetail> {
+  return apiRequest<AdminSupportTicketDetail>(`/api/admin/support-tickets/${ticketId}`);
+}
+
+export async function updateAdminSupportTicketStatus(
+  ticketId: string,
+  status: 'pending' | 'in_progress' | 'resolved' | 'closed'
+): Promise<AdminSupportTicket> {
+  return apiRequest<AdminSupportTicket>(`/api/admin/support-tickets/${ticketId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
