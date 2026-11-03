@@ -13,6 +13,7 @@ from decimal import Decimal
 import json
 import logging
 from typing import Any
+import unicodedata
 import uuid
 
 from langchain_core.tools import tool
@@ -42,7 +43,13 @@ class SearchProductsInput(BaseModel):
     )
     category_name: str | None = Field(
         default=None,
-        description="Nome da categoria para filtrar (ex: 'Cordas', 'Teclas', 'Percussão', 'Áudio & Microfones', 'Acessórios').",
+        description=(
+            "Nome exato da categoria para filtrar produtos. Use somente quando o cliente "
+            "especificar explicitamente uma categoria. Deixe nulo se houver dúvida. "
+            "Categorias disponíveis: 'Guitarras', 'Baixos', 'Baterias e Percussão', "
+            "'Teclados e Pianos', 'Violões', 'Instrumentos de Sopro (Madeiras)', "
+            "'Instrumentos de Sopro (Metais)', 'Cordas Orquestrais', 'Ukuleles'."
+        ),
     )
     max_price: float | None = Field(
         default=None,
@@ -118,6 +125,24 @@ def create_agent_tools(db: Session, current_user: User, conversation_id: uuid.UU
         """Busca instrumentos e produtos musicais no catálogo do PostgreSQL da Empório da Música.
         Permite buscar por nome, categoria ou faixa de preço. Retorna preço em BRL, estoque e características.
         """
+        def _normalize(txt: str) -> str:
+            decomposed = unicodedata.normalize("NFD", txt)
+            stripped = "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
+            return stripped.lower()
+
+        def _variants(word: str) -> set[str]:
+            res = {word}
+            if word.endswith("s") and len(word) > 3:
+                res.add(word[:-1])
+            if word.endswith("es") and len(word) > 4:
+                res.add(word[:-2])
+            if word.endswith("oes") and len(word) > 4:
+                res.add(word[:-3] + "ao")
+            if word.endswith("ao") and len(word) > 3:
+                res.add(word[:-2] + "oes")
+                res.add(word[:-2] + "aos")
+            return res
+
         stmt = (
             select(Product)
             .join(Category, Category.category_id == Product.category_id)
@@ -127,22 +152,62 @@ def create_agent_tools(db: Session, current_user: User, conversation_id: uuid.UU
         if category_name:
             stmt = stmt.where(Category.name.ilike(f"%{category_name.strip()}%"))
 
-        if query:
-            clean_q = f"%{query.strip()}%"
-            stmt = stmt.where(
-                or_(
-                    Product.name.ilike(clean_q),
-                    Product.description.ilike(clean_q),
-                )
-            )
-
         if max_price is not None:
             stmt = stmt.where(Product.price_brl <= Decimal(str(max_price)))
 
-        stmt = stmt.order_by(Product.price_brl.asc()).limit(limit)
-        products = db.execute(stmt).scalars().all()
+        candidates = db.execute(stmt).scalars().all()
 
-        if not products:
+        if not candidates:
+            return json.dumps(
+                {
+                    "message": "Nenhum produto encontrado com os critérios fornecidos.",
+                    "total_found": 0,
+                    "products": [],
+                },
+                ensure_ascii=False,
+            )
+
+        if query and query.strip():
+            raw_terms = query.strip().split()
+            norm_terms = [_normalize(w) for w in raw_terms if _normalize(w)]
+            term_variants = [_variants(t) for t in norm_terms]
+
+            scored: list[tuple[int, int, Decimal, Product]] = []
+            for p in candidates:
+                p_name = _normalize(p.name)
+                p_cat = _normalize(p.category.name if p.category else "")
+                p_desc = _normalize(p.description or "")
+
+                matches = 0
+                score = 0
+                for vset in term_variants:
+                    in_name = any(v in p_name for v in vset)
+                    in_cat = any(v in p_cat for v in vset)
+                    in_desc = any(v in p_desc for v in vset)
+
+                    if in_name or in_cat or in_desc:
+                        matches += 1
+                        if in_name:
+                            score += 10
+                        if in_cat:
+                            score += 6
+                        if in_desc:
+                            score += 1
+
+                # If multiple terms are queried, eliminate spurious single-term matches
+                min_matches = 2 if len(norm_terms) > 1 else 1
+                if matches >= min_matches:
+                    scored.append((matches, score, p.price_brl, p))
+
+            # Rank primarily by number of matched terms, then weighted score, then price
+            scored.sort(key=lambda x: (-x[0], -x[1], x[2]))
+            matched_products = [item[3] for item in scored[:limit]]
+        else:
+            # When no text query is provided, order by price and take limit
+            candidates.sort(key=lambda p: p.price_brl)
+            matched_products = candidates[:limit]
+
+        if not matched_products:
             return json.dumps(
                 {
                     "message": "Nenhum produto encontrado com os critérios fornecidos.",
@@ -153,7 +218,7 @@ def create_agent_tools(db: Session, current_user: User, conversation_id: uuid.UU
             )
 
         results = []
-        for p in products:
+        for p in matched_products:
             results.append(
                 {
                     "product_id": p.product_id,
@@ -343,6 +408,7 @@ def create_agent_tools(db: Session, current_user: User, conversation_id: uuid.UU
                     "file_name": r.file_name,
                     "page": r.page,
                     "excerpt": r.content,
+                    "score": round(float(r.score), 4) if getattr(r, "score", None) is not None else None,
                     "citation": f"{r.document_name}, pág. {r.page}",
                 }
             )

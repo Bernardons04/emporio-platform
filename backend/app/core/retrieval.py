@@ -118,19 +118,40 @@ class HybridRetriever:
     ) -> list[tuple[DocumentChunk, Document, float]]:
         """Lexical full-text search using PostgreSQL tsvector ('portuguese' dictionary).
 
-        Handles policy terms, deadlines, numbers, and specific policy queries.
+        Uses OR-based tsquery so that multi-term queries match chunks that contain
+        any of the significant terms, not only chunks that contain ALL of them.
+        Chunks are ranked by ts_rank_cd, so those matching more terms score higher.
+
         Returns list of (chunk, document, rank_score).
         """
         doc_filter_sql = "AND c.document_id = :doc_id" if document_id else ""
+
+        # Build an OR-based tsquery: each term is stemmed independently by the
+        # Portuguese dictionary and joined with '|'.  This avoids false negatives
+        # when the query contains terms that are absent from an otherwise highly
+        # relevant chunk (e.g. querying "entrega frete retirada" should still
+        # match a chunk about "Frete e Entregas" that never mentions "retirada").
         sql = f"""
             SELECT 
                 c.id AS chunk_id,
                 ts_rank_cd(
                     to_tsvector('portuguese', c.content),
-                    plainto_tsquery('portuguese', :query)
+                    to_tsquery('portuguese', array_to_string(
+                        array(
+                            SELECT lexeme
+                            FROM unnest(to_tsvector('portuguese', :query))
+                        ),
+                        ' | '
+                    ))
                 ) AS rank_score
             FROM document_chunks c
-            WHERE to_tsvector('portuguese', c.content) @@ plainto_tsquery('portuguese', :query)
+            WHERE to_tsvector('portuguese', c.content) @@ to_tsquery('portuguese', array_to_string(
+                array(
+                    SELECT lexeme
+                    FROM unnest(to_tsvector('portuguese', :query))
+                ),
+                ' | '
+            ))
             {doc_filter_sql}
             ORDER BY rank_score DESC
             LIMIT :limit;
