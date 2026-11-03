@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   createCustomerConversation,
   CustomerConversation,
@@ -67,6 +68,24 @@ export default function ChatPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close user menu on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+
+    if (userMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [userMenuOpen]);
 
   // Verify auth session
   useEffect(() => {
@@ -290,7 +309,7 @@ export default function ChatPage() {
                 <h1 className="font-bold text-slate-900 text-sm sm:text-base">
                   Atendimento Empório da Música
                 </h1>
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-[#E6A211]/20 text-amber-900 border border-[#E6A211]/30">
+                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-[#E6A211]/20 text-amber-900 border border-[#E6A211]/30">
                   Campo Grande
                 </span>
               </div>
@@ -300,18 +319,81 @@ export default function ChatPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="text-right hidden sm:block">
-              <div className="text-xs font-semibold text-slate-800">{user.name}</div>
-              <div className="text-[11px] text-slate-500">{user.email}</div>
-            </div>
-
+          {/* User Menu Dropdown */}
+          <div className="relative" ref={userMenuRef}>
             <button
-              onClick={handleLogout}
-              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md border border-slate-300 transition-colors cursor-pointer"
+              onClick={() => setUserMenuOpen((prev) => !prev)}
+              className="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors text-slate-700 hover:text-slate-900 shadow-2xs cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-[#2B5276]/20"
+              aria-expanded={userMenuOpen}
+              aria-haspopup="true"
+              aria-label="Menu do usuário"
             >
-              Sair
+              <span className="w-7 h-7 rounded-full bg-[#2B5276] text-white flex items-center justify-center text-xs font-bold shrink-0">
+                {user.name.slice(0, 2).toUpperCase()}
+              </span>
+              <span className="hidden sm:inline-block text-xs font-semibold text-slate-800 max-w-[120px] sm:max-w-[180px] truncate text-left">
+                {user.name}
+              </span>
+              <svg
+                className={`w-4 h-4 text-slate-400 transition-transform duration-150 ${
+                  userMenuOpen ? 'rotate-180 text-slate-600' : ''
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+              </svg>
             </button>
+
+            {/* Dropdown Menu */}
+            {userMenuOpen && (
+              <div className="absolute right-0 mt-1.5 w-60 rounded-xl bg-white border border-slate-200 shadow-lg py-1.5 z-50 text-xs animate-in fade-in-50 zoom-in-95 duration-100">
+                {/* User info header */}
+                <div className="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/60">
+                  <p className="font-semibold text-slate-900 truncate">{user.name}</p>
+                  <p className="text-[11px] text-slate-500 truncate mt-0.5">{user.email}</p>
+                  {user.is_admin && (
+                    <span className="inline-block mt-1.5 px-2 py-0.5 text-[10px] font-semibold rounded bg-[#2B5276]/10 text-[#2B5276] border border-[#2B5276]/20">
+                      Administrador
+                    </span>
+                  )}
+                </div>
+
+                {/* Admin panel option (only for admins) */}
+                {user.is_admin && (
+                  <div className="py-1 border-b border-slate-100">
+                    <Link
+                      href="/admin"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3.5 py-2 text-slate-700 hover:text-[#2B5276] hover:bg-slate-50 font-medium transition-colors cursor-pointer"
+                    >
+                      <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Painel administrativo
+                    </Link>
+                  </div>
+                )}
+
+                {/* Logout option */}
+                <div className="pt-1">
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-red-600 hover:text-red-700 hover:bg-red-50/70 font-medium transition-colors text-left cursor-pointer"
+                  >
+                    <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Sair
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </header>
 

@@ -23,12 +23,28 @@ md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
 };
 
 /**
+ * Strips bracketed document citations like [Políticas da Loja, pág. 4] or [pág. 3]
+ * from customer-facing text, without altering internal structure or markdown tables.
+ */
+export function stripDocumentCitations(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/\[(?:Políticas?\s+da\s+Loja|Política|Manual)[^\]]*pág\.?[^\]]*\]/gi, '')
+    .replace(/\[pág\.?\s*\d+(?:\s*[-–]\s*\d+)?\]/gi, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/ \./g, '.')
+    .replace(/ ,/g, ',')
+    .trim();
+}
+
+/**
  * Parses markdown into clean, sanitized HTML safe for assistant message display.
  */
 export function renderAssistantMarkdown(content: string): string {
   if (!content) return '';
 
-  const rawHtml = md.render(content);
+  const cleanContent = stripDocumentCitations(content);
+  const rawHtml = md.render(cleanContent);
 
   // Sanitize with DOMPurify while preserving the safe link attributes
   return DOMPurify.sanitize(rawHtml, {
