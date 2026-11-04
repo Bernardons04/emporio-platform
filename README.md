@@ -59,7 +59,7 @@ The platform combines an LLM-powered conversational assistant with deterministic
 
 ## Architecture & Request Flow
 
-The system maintains a clear separation of concerns:
+The system follows a layered architecture, separating the web application, authentication, AI orchestration, and data persistence.
 
 - **Frontend**: Next.js App Router providing customer and administrator interfaces.
 - **Backend**: FastAPI REST API handling authentication, authorization, and business rules.
@@ -68,37 +68,47 @@ The system maintains a clear separation of concerns:
 
 ### System Architecture
 
-The following diagram illustrates the main application components and their interactions:
+The following diagram illustrates the main application layers and their responsibilities:
 
 ```mermaid
 flowchart TD
     User([Customer / Administrator]) --> Frontend[Next.js Frontend]
-    Frontend --> Backend[FastAPI Backend]
-    Backend --> Agent[LangGraph Agent]
-    Agent --> LLM[LLM via OpenRouter]
-    Agent <--> DB[(PostgreSQL + pgvector)]
-    Backend --> DB
-    Backend --> Frontend
-    Frontend --> User
+    Frontend -->|HTTP + Session Cookie| Backend[FastAPI Backend]
+
+    Backend --> Auth[Session Authentication]
+    Auth -->|Verified User Context| Agent[LangGraph Agent]
+
+    Agent <--> LLM[LLM via OpenRouter]
+    Agent <--> DB[(PostgreSQL 17 + pgvector)]
+    Backend <--> DB
 ```
 
 ### AI Agent Workflow
 
-The agent uses the LLM to select specialized tools. These tools retrieve operational data or search store policies through the hybrid retrieval pipeline.
+The agent follows a cyclic execution flow: the LLM can either generate a final response or request specialized tools. Tool results are returned to the model, allowing further reasoning and tool execution when needed.
 
 ```mermaid
 flowchart TD
-    Agent[LangGraph Agent] --> LLM[LLM]
-    LLM --> Decision{Tool needed?}
-    Decision -->|No| Response[Final Response]
-    Decision -->|Yes| Tools[Specialized Tools]
-    Tools -->|Product, Orders, Promotions, Support| DB[(PostgreSQL)]
-    Tools -->|Store Policies| RAG[Hybrid Retrieval]
-    RAG --> DB
-    DB --> Results[Retrieved Information]
-    Results --> LLM
-    LLM --> Response
+    Start([START]) --> Agent[agent_node]
+    Agent --> Condition{tools_condition}
+
+    Condition -->|No tool calls| End([END])
+    Condition -->|Tool calls| Tools[tools_node]
+
+    subgraph ToolsGroup[Specialized Tools]
+        direction LR
+        Products[Products]
+        Orders[Customer Orders]
+        Promotions[Promotions]
+        Policies[Store Policies]
+        Support[Human Support]
+    end
+
+    Tools --> ToolsGroup
+    Products & Orders & Promotions & Policies & Support --> Agent
 ```
+
+The policy search tool uses hybrid retrieval, combining semantic vector search and PostgreSQL full-text search. Their results are merged using Reciprocal Rank Fusion (RRF, `k=60`). Customer order queries are scoped to the authenticated user's `customer_id`.
 
 ---
 
