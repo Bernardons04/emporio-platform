@@ -60,47 +60,66 @@ The platform combines an LLM-powered conversational assistant with deterministic
 ## Architecture & Request Flow
 
 The system maintains a clean separation of concerns:
-- **Frontend**: Next.js App Router providing reactive customer and administrator interfaces.
+
+- **Frontend**: Next.js App Router providing customer and administrator interfaces.
 - **Backend**: FastAPI REST API enforcing session authentication, authorization, and business rules.
-- **AI Agent**: State machine powered by LangGraph, coordinating deterministic database queries and document retrieval.
-- **Database**: PostgreSQL 17 with `pgvector` serving as the single source of truth for structured operational tables, document chunks, and embeddings.
+- **AI Agent**: LangGraph state machine coordinating deterministic database queries and document retrieval.
+- **Database**: PostgreSQL 17 with `pgvector`, serving as the single source of truth for structured operational data, document chunks, and embeddings.
+
+### System Architecture
+
+The diagram below illustrates how the main application components interact:
 
 ```mermaid
 flowchart TD
     User([Customer / Administrator]) -->|HTTP / Session Cookie| Frontend[Next.js App Router]
-    Frontend -->|REST API Requests| FastAPI[FastAPI Backend]
+    Frontend -->|REST API Requests| Backend[FastAPI Backend]
 
-    subgraph Security Layer
-        FastAPI -->|Cookie Token Check| Auth[Session Auth Guard]
-        Auth -->|Hash Token SHA-256| SessionDB[(PostgreSQL: sessions)]
-    end
+    Backend -->|Session Authentication| Auth[Authentication & Authorization]
+    Auth -->|Authenticated Request| Agent[LangGraph Agent]
 
-    Auth -->|Authenticated Context| LangGraph[LangGraph State Machine]
+    Agent -->|LLM Requests| LLM[LLM via OpenRouter]
+    Agent -->|Database Operations| DB[(PostgreSQL 17 + pgvector)]
 
-    subgraph Agent Orchestration Loop
-        LangGraph -->|System Prompt + History| LLM[LLM via OpenRouter]
-        LLM -->|Tool Call Decisions| Router{Tool Router}
-
-        Router -->|Products / Stock / Price| ToolProd[search_products]
-        Router -->|Customer Orders| ToolOrders[get_customer_orders]
-        Router -->|Promotions & Discounts| ToolPromos[search_promotions]
-        Router -->|Store Policies| ToolRAG[search_store_policies]
-        Router -->|Human Support Ticket| ToolEscalate[escalate_to_human_support]
-
-        ToolProd --> DB[(PostgreSQL)]
-        ToolOrders -->|Scoped by current_user.customer_id| DB
-        ToolPromos --> DB
-        ToolRAG --> HybridEngine[Hybrid Retriever: pgvector + FTS]
-        HybridEngine --> DB
-        ToolEscalate --> DB
-
-        Router -->|Tool Execution Results| LLM
-    end
-
-    LLM -->|Natural Language pt-BR Response| FastAPI
-    FastAPI -->|Audit Events Logged| EventDB[(PostgreSQL: message_events)]
-    FastAPI -->|JSON Response| Frontend
+    Backend -->|Audit Events| Events[(message_events)]
+    Backend -->|JSON Response| Frontend
     Frontend --> User
+```
+
+### AI Agent & Retrieval Workflow
+
+The LangGraph agent uses the LLM to decide when to invoke specialized tools. Transactional tools query structured PostgreSQL data, while the policy search tool uses hybrid retrieval combining semantic and lexical search.
+
+```mermaid
+flowchart TD
+    Agent[LangGraph Agent] -->|System Prompt + Conversation History| LLM[LLM via OpenRouter]
+    LLM -->|Tool Call Decisions| Router{Tool Router}
+
+    Router -->|Products / Stock / Price| Products[search_products]
+    Router -->|Customer Orders| Orders[get_customer_orders]
+    Router -->|Promotions & Discounts| Promotions[search_promotions]
+    Router -->|Store Policies| Policies[search_store_policies]
+    Router -->|Human Support Ticket| Support[escalate_to_human_support]
+
+    Products --> DB[(PostgreSQL)]
+    Orders -->|Scoped by current_user.customer_id| DB
+    Promotions --> DB
+    Support --> DB
+
+    Policies --> Retriever[Hybrid Retriever]
+    Retriever --> Vector[pgvector Semantic Search]
+    Retriever --> FTS[PostgreSQL Full-Text Search]
+    Vector --> DB
+    FTS --> DB
+
+    Products --> Results[Tool Execution Results]
+    Orders --> Results
+    Promotions --> Results
+    Support --> Results
+    Retriever --> Results
+
+    Results --> LLM
+    LLM -->|Natural Language pt-BR Response| Agent
 ```
 
 ---
