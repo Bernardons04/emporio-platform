@@ -48,7 +48,6 @@ Use the following technologies:
 - pgvector
 - Docker
 - Docker Compose
-- NeonDB as the planned managed PostgreSQL provider.
 
 ### Architecture Guidelines
 
@@ -225,7 +224,7 @@ Only work on the phase and tasks explicitly requested by the user. Do not start 
 
 - Extract text from PDF documents.
 - Implement document chunking.
-- Generate embeddings through OpenRouter.
+- Generate embeddings through OpenRouter using `openai/text-embedding-3-small`.
 - Store document chunks and vectors in PostgreSQL.
 - Implement hybrid retrieval.
 - Return relevant source references.
@@ -264,9 +263,8 @@ Do not create automated test suites as part of this phase.
 - Document setup and execution instructions.
 - Explain architecture and technical decisions.
 - Document known limitations and data inconsistencies.
-- Include three to five representative conversation examples.
+- Include five representative conversation examples based on real interactions with the application.
 - Explain the AI tools used during development.
-- Prepare deployment if time permits.
 - Review the repository before final submission.
 
 
