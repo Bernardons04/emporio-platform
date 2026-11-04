@@ -59,67 +59,45 @@ The platform combines an LLM-powered conversational assistant with deterministic
 
 ## Architecture & Request Flow
 
-The system maintains a clean separation of concerns:
+The system maintains a clear separation of concerns:
 
 - **Frontend**: Next.js App Router providing customer and administrator interfaces.
-- **Backend**: FastAPI REST API enforcing session authentication, authorization, and business rules.
-- **AI Agent**: LangGraph state machine coordinating deterministic database queries and document retrieval.
-- **Database**: PostgreSQL 17 with `pgvector`, serving as the single source of truth for structured operational data, document chunks, and embeddings.
+- **Backend**: FastAPI REST API handling authentication, authorization, and business rules.
+- **AI Agent**: LangGraph coordinating LLM interactions and specialized tools.
+- **Database**: PostgreSQL 17 with `pgvector`, storing operational data, document chunks, and embeddings.
 
 ### System Architecture
 
-The diagram below illustrates how the main application components interact:
+The following diagram illustrates the main application components and their interactions:
 
 ```mermaid
 flowchart TD
-    User([Customer / Administrator]) -->|HTTP / Session Cookie| Frontend[Next.js App Router]
-    Frontend -->|REST API Requests| Backend[FastAPI Backend]
-
-    Backend -->|Session Authentication| Auth[Authentication & Authorization]
-    Auth -->|Authenticated Request| Agent[LangGraph Agent]
-
-    Agent -->|LLM Requests| LLM[LLM via OpenRouter]
-    Agent -->|Database Operations| DB[(PostgreSQL 17 + pgvector)]
-
-    Backend -->|Audit Events| Events[(message_events)]
-    Backend -->|JSON Response| Frontend
+    User([Customer / Administrator]) --> Frontend[Next.js Frontend]
+    Frontend --> Backend[FastAPI Backend]
+    Backend --> Agent[LangGraph Agent]
+    Agent --> LLM[LLM via OpenRouter]
+    Agent <--> DB[(PostgreSQL + pgvector)]
+    Backend --> DB
+    Backend --> Frontend
     Frontend --> User
 ```
 
-### AI Agent & Retrieval Workflow
+### AI Agent Workflow
 
-The LangGraph agent uses the LLM to decide when to invoke specialized tools. Transactional tools query structured PostgreSQL data, while the policy search tool uses hybrid retrieval combining semantic and lexical search.
+The agent uses the LLM to select specialized tools. These tools retrieve operational data or search store policies through the hybrid retrieval pipeline.
 
 ```mermaid
 flowchart TD
-    Agent[LangGraph Agent] -->|System Prompt + Conversation History| LLM[LLM via OpenRouter]
-    LLM -->|Tool Call Decisions| Router{Tool Router}
-
-    Router -->|Products / Stock / Price| Products[search_products]
-    Router -->|Customer Orders| Orders[get_customer_orders]
-    Router -->|Promotions & Discounts| Promotions[search_promotions]
-    Router -->|Store Policies| Policies[search_store_policies]
-    Router -->|Human Support Ticket| Support[escalate_to_human_support]
-
-    Products --> DB[(PostgreSQL)]
-    Orders -->|Scoped by current_user.customer_id| DB
-    Promotions --> DB
-    Support --> DB
-
-    Policies --> Retriever[Hybrid Retriever]
-    Retriever --> Vector[pgvector Semantic Search]
-    Retriever --> FTS[PostgreSQL Full-Text Search]
-    Vector --> DB
-    FTS --> DB
-
-    Products --> Results[Tool Execution Results]
-    Orders --> Results
-    Promotions --> Results
-    Support --> Results
-    Retriever --> Results
-
+    Agent[LangGraph Agent] --> LLM[LLM]
+    LLM --> Decision{Tool needed?}
+    Decision -->|No| Response[Final Response]
+    Decision -->|Yes| Tools[Specialized Tools]
+    Tools -->|Product, Orders, Promotions, Support| DB[(PostgreSQL)]
+    Tools -->|Store Policies| RAG[Hybrid Retrieval]
+    RAG --> DB
+    DB --> Results[Retrieved Information]
     Results --> LLM
-    LLM -->|Natural Language pt-BR Response| Agent
+    LLM --> Response
 ```
 
 ---
